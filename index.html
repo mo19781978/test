@@ -1,0 +1,40 @@
+
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+ <script>
+
+function addImage (item, index){
+  console.log(item.data);
+  console.log(item.data.thumbnail);
+  $("#photogallery").prepend('<img class="thumbImg" src=' + item.data.thumbnail + ' onerror=\'this.style.display = "none"\' />')
+}
+
+function loadGallery(keyword){
+	$.ajax({
+	  url: 'https://www.reddit.com/r/' + keyword + '/top.json',
+	  dataType: 'json',
+	  jsonpCallback: 'RedditJSONPCallback', // specify the callback name if you're hard-coding it
+	  success: function(data){
+		// we make a successful JSONP call!
+		
+		$("#photogallery").html("");
+		//console.log(data);
+		data.data.children.forEach(addImage);
+
+
+		
+	  }
+	});
+}
+ </script>
+  </head>
+  <body>
+  <input type="text" value="formula1" id="ricerca"><input type="button" value="carica immagini" onclick="loadGallery($('#ricerca').val());">
+  loading...
+ <div id="photogallery"></div> 
+    
+  </body>
+
+</html>
