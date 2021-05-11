@@ -12,6 +12,7 @@ import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import { withStyles, fade } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
+import CircularProgress from '@material-ui/core/CircularProgress';
 
 import InputBase from '@material-ui/core/InputBase';
 import SearchIcon from '@material-ui/icons/Search';
@@ -31,7 +32,8 @@ class Album extends React.Component {
     this.state = {
                     cards : [], 
                     keywordReddit:this.props.category,
-                    noResults:false,
+                    nResults: -1,
+                    isLoading: true,
                     isOpen: false,
                     isOpenCard:{}
                   };
@@ -56,7 +58,8 @@ class Album extends React.Component {
 
   //Get Photos from API reddit.com
   getPhotosRedditFromApiAsync(KeywordSearch) {
-     return fetch('https://www.reddit.com/r/' + KeywordSearch + '/top.json?limit=9')
+     this.setState({ isLoading: true });
+     return  fetch('https://www.reddit.com/r/' + KeywordSearch + '/top.json?limit=9')
      .then((response) => response.json())
      .then((responseJson) => {
         //console.log(responseJson.data.children);
@@ -81,15 +84,10 @@ class Album extends React.Component {
                                                                  }
                                          );
 
-        console.log(arrPhotos);
+        //console.log(arrPhotos);
 
-        if (arrPhotos.lenght>0){
-          this.setState({ noResults: false });
-        }
-        else{
-          this.setState({ noResults: true });
-        }
- 
+        this.setState({ nResults: arrPhotos.length });
+        this.setState({ isLoading: false });
 
         this.setState({
           cards: arrPhotos
@@ -97,10 +95,11 @@ class Album extends React.Component {
 
        return;
      })
+
      .catch((error) => {
+       this.setState({ nResults: 0 });
+       this.setState({ isLoading: false });
        console.error(error);
-       this.setState({ noResults: true });
-       console.log("Error no results" +  this.state.noResults);
      });
   }
  //End Get Photos from API reddit.com
@@ -159,41 +158,54 @@ class Album extends React.Component {
               <div className={this.props.classes.heroContent}>
                 <Container maxWidth="sm">
                   <Typography component="h1" variant="h4" align="center" color="textPrimary" gutterBottom>
-                    Photo gallery from Reddit.com: {this.state.keywordReddit}
+                    Photo gallery from Reddit.com: {this.state.keywordReddit} 
                   </Typography>
+                  {this.state.nResults >= 0 && ( 
+                    <Typography variant="h5" align="center" color="textSecondary" paragraph>
+                      Find {this.state.nResults} elements
+                    </Typography>
+                  )}
                   <Typography variant="h5" align="center" color="textSecondary" paragraph>
                     To search for Reddit keywords, use the search function
                   </Typography>
                 </Container>
               </div>
               {/* END HEADER KEYWORD REDDIT */}
+              
 
               <Container className={this.props.classes.cardGrid} maxWidth="md">
-                
-                {/* GRID PHOTOGALLERY */}    
-                <Grid container spacing={4} className={this.state.noResults ? '' : 'hidden'}>
-                  {this.state.cards.map((card, index) => (
-                    <Grid item key={index} xs={12} sm={6} md={4}>
-                      <Card className={this.props.classes.card} >
-                        <CardMedia
-                          className={this.props.classes.cardMedia}
-                          image={card.image}
-                          title={card.header}
-                        />
-                        <CardContent className={this.props.classes.cardContent}>
-                          <Typography gutterBottom variant="subtitle1" component="h2" >
-                            {card.header}
-                          </Typography>
-                        </CardContent>
-                        <CardActions>
-                          <Button size="small" color="primary" onClick={e => this.handleClickOpen(card)}>
-                            View
-                          </Button>
-                        </CardActions>
-                      </Card>
+                {this.state.isLoading ===true && ( 
+                  <div className="containerLoader">
+                    <CircularProgress />
+                  </div>
+                )}
+
+                {/* GRID PHOTOGALLERY */} 
+                 {this.state.nResults > 0 && (   
+                    <Grid container spacing={4}>
+                      {this.state.cards.map((card, index) => (
+                        <Grid item key={index} xs={12} sm={6} md={4}>
+                          <Card className={this.props.classes.card} >
+                            <CardMedia
+                              className={this.props.classes.cardMedia}
+                              image={card.image}
+                              title={card.header}
+                            />
+                            <CardContent className={this.props.classes.cardContent}>
+                              <Typography gutterBottom variant="subtitle1" component="h2" >
+                                {card.header}
+                              </Typography>
+                            </CardContent>
+                            <CardActions>
+                              <Button size="small" color="primary" onClick={e => this.handleClickOpen(card)}>
+                                View
+                              </Button>
+                            </CardActions>
+                          </Card>
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
-                </Grid>
+                )}
                  {/* END GRID PHOTOGALLERY */}
             
                 {/* DIALOG FULL SCREEN IMAGE */}    
@@ -223,10 +235,13 @@ class Album extends React.Component {
                 </Dialog>
                 {/* END DIALOG FULL SCREEN IMAGE */}       
 
-
-                  <Typography variant="h5" align="center" color="textSecondary" paragraph className={this.state.noResults ? 'hidden' : ''}>
+              {/* DISPLAY NO RESULTS MESSAGE */}
+                {this.state.nResults === 0 && (
+                  <Typography variant="h5" align="center" color="textSecondary" paragraph>
                     No results for the keyword: {this.state.keywordReddit}
                   </Typography>
+                )}
+              {/* END DISPLAY NO RESULTS MESSAGE */}
               </Container>
             </main>
           </React.Fragment>
