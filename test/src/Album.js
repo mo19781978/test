@@ -24,9 +24,11 @@ import IconButton from '@material-ui/core/IconButton';
 import './Album.css';
 
 class Album extends React.Component {
-  
+
+    
   constructor(props) {
     super(props);
+
 
     //Define state
     this.state = {
@@ -35,22 +37,54 @@ class Album extends React.Component {
                     nResults: -1,
                     isLoading: true,
                     isOpen: false,
-                    isOpenCard:{}
+                    isOpenCard:{},
+                    prevY: 0
                   };
 
+    
+  }
+
+  componentDidMount() {
     //Search Event
     this.keyPress = this.keyPress.bind(this);
-    
+
     //Load Photos
     this.getPhotosRedditFromApiAsync(this.props.category);
+
+    // Create Observer for scroll
+    var options = {
+      root: null, 
+      rootMargin: "0px",
+      threshold: 1.0
+    };
+    
+    this.observer = new IntersectionObserver(
+      this.handleObserver.bind(this), 
+      options
+    );
+    
+    this.observer.observe(this.loadingRef);
   }
+
+  //Observer for scrolling
+  handleObserver(entities, observer) {
+    const y = entities[0].boundingClientRect.y;
+    if (this.state.prevY > y) {
+      this.getPhotosRedditFromApiAsync(this.state.keywordReddit);
+    }
+    this.setState({ prevY: y });
+  }
+  //End Observer for scrolling
 
 
   //Search Keyword
   keyPress(e){
       if(e.keyCode === 13){
           this.setState({ keywordReddit: e.target.value });
-          //Load Photos
+          //Load new Photos
+          this.setState({
+            cards: []
+          });
           this.getPhotosRedditFromApiAsync(e.target.value);
       }
    }
@@ -59,24 +93,42 @@ class Album extends React.Component {
   //Get Photos from API reddit.com
   getPhotosRedditFromApiAsync(KeywordSearch) {
      this.setState({ isLoading: true });
-     return  fetch('https://www.reddit.com/r/' + KeywordSearch + '/top.json?limit=9')
+
+     /*pagination*/
+     var afterId=''
+     if (KeywordSearch===this.state.keywordReddit){
+       if (this.state.cards.length>0){
+          afterId = 't3_' + this.state.cards[this.state.cards.length-1].id;
+       }
+     }
+     /*end pagination*/
+
+     return  fetch('https://www.reddit.com/r/' + KeywordSearch + '/top.json?limit=9&after=' + afterId)
      .then((response) => response.json())
      .then((responseJson) => {
         //console.log(responseJson.data.children);
-        var arrPhotos = [];
+        var arrPhotos = this.state.cards;
+
 
         responseJson.data.children.forEach(function(item, index){
+                                                                  var imageThumb = item.data.thumbnail;
+                                                                  console.log(imageThumb);
+                                                                 
+                                                                  if ((imageThumb==="")||(imageThumb==="default")||(imageThumb==="self")){
+                                                                      imageThumb = "/placeholder.jpg";
+                                                                  }
 
-                                                                  var imageLarge = item.data.thumbnail;
+                                                                  var imageLarge = imageThumb;
+
                                                                   try{
                                                                     if (item.data.preview.images[0].source.url){
                                                                       imageLarge=item.data.preview.images[0].source.url.replace(/amp;/g, "");;
                                                                     }
                                                                   }catch(ex){}
                                                                   arrPhotos.push({
-                                                                            id: index,
+                                                                            id: item.data.id,
                                                                             header: item.data.title,
-                                                                            image: item.data.thumbnail,
+                                                                            image: imageThumb,
                                                                             imageLarge: imageLarge,
                                                                             author: item.data.author
                                                                           });
@@ -103,8 +155,7 @@ class Album extends React.Component {
      });
   }
  //End Get Photos from API reddit.com
-  
-
+ 
   //Function Open Dialog Full Screen
   handleClickOpen = card => {
     this.setState({ isOpenCard: card });
@@ -166,7 +217,7 @@ class Album extends React.Component {
                     </Typography>
                   )}
                   <Typography variant="h5" align="center" color="textSecondary" paragraph>
-                    To search for Reddit keywords, use the search function
+                    To search for Reddit keywords, use the search function. You can scroll for view more images.
                   </Typography>
                 </Container>
               </div>
@@ -174,11 +225,7 @@ class Album extends React.Component {
               
 
               <Container className={this.props.classes.cardGrid} maxWidth="md">
-                {this.state.isLoading ===true && ( 
-                  <div className="containerLoader">
-                    <CircularProgress />
-                  </div>
-                )}
+                
 
                 {/* GRID PHOTOGALLERY */} 
                  {this.state.nResults > 0 && (   
@@ -204,7 +251,16 @@ class Album extends React.Component {
                           </Card>
                         </Grid>
                       ))}
+
+                      <Button  size="large" color="primary" onClick={e => this.getPhotosRedditFromApiAsync(this.state.keywordReddit)}>
+                            Load More...
+                      </Button>
+
+                     
                     </Grid>
+
+
+
                 )}
                  {/* END GRID PHOTOGALLERY */}
             
@@ -234,7 +290,8 @@ class Album extends React.Component {
                     </Card>
                 </Dialog>
                 {/* END DIALOG FULL SCREEN IMAGE */}       
-
+ 
+ 
               {/* DISPLAY NO RESULTS MESSAGE */}
                 {this.state.nResults === 0 && (
                   <Typography variant="h5" align="center" color="textSecondary" paragraph>
@@ -243,6 +300,15 @@ class Album extends React.Component {
                 )}
               {/* END DISPLAY NO RESULTS MESSAGE */}
               </Container>
+              
+              {this.state.isLoading ===true && ( 
+                  <div className="containerLoader">
+                    <CircularProgress />
+                  </div>
+              )}
+              
+              <div ref={loadingRef => (this.loadingRef = loadingRef)} ></div>
+               
             </main>
           </React.Fragment>
         );
@@ -331,13 +397,13 @@ const styles = theme => ({
   },
   fullCard: {
     height: '100vh',
-    margin: 'auto'
+    marginTop: '60px'
   },
   fullCardMedia: {
     width: 'auto',
     backgroundSize: 'contain',
     backgroundPosition: 'top',
-    height: '80vh'
+    height: '70vh'
   }
 })
  /* END STYLE CUSTOM */
